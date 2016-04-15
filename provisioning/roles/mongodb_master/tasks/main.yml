@@ -1,0 +1,22 @@
+---
+
+- name: Display all variables/facts known for a host
+  debug: var=hostvars[inventory_hostname]
+  
+- include: configure.yml
+  tags: [mongodb]
+
+- name: Create the file to initialize the mongod replica set
+  template: src=repset_init.j2 dest=/etc/repset_init_tmpl.js
+
+- name: Create the file to block until catchup
+  template: src=repset_block.j2 dest=/etc/repset_block.js
+
+
+# - name: Initialize the replication set
+#   run_once: true
+#   shell: /usr/bin/mongo /etc/repset_init.js
+
+# stop mongod process for imaging, so that we dont have a mongod.lock
+- name: mongodb stop for imaging
+  service: name={{ mongodb_daemon_name }} state=stopped

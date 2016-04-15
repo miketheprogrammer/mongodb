@@ -1,0 +1,11 @@
+---
+
+mongodb_package: mongodb-org
+mongodb_apt_key_url: keyserver.ubuntu.com
+mongodb_apt_key_id: EA312927
+mongodb_force_wait_for_port: false
+
+### Transparent Huge Pages https://docs.mongodb.org/manual/tutorial/transparent-huge-pages/
+mongodb_disable_thp: true
+
+mongodb_repository: "deb http://repo.mongodb.org/apt/ubuntu trusty/mongodb-org/3.2 multiverse"

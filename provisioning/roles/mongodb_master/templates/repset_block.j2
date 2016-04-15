@@ -1,0 +1,68 @@
+
+
+///// FUNCTIONS //////
+var until = function (fn, sleepms, tries) {
+  var result = fn();
+  var response = {
+    triesLeft: tries,
+    result: result
+  }
+  if (tries === 0) return response;
+
+  sleepms = sleepms || 5000
+  tries = tries || 'infinity';
+  
+  if (result !== true) {
+    print('waiting', sleepms);
+    print('Attempts left', tries - 1);
+    sleep(sleepms)
+    if (tries === 'infinity') {
+      return until(fn, sleepms);
+    }
+    return until(fn, sleepms, tries - 1);
+  }
+  return response;
+}
+
+/////// END FUNCTIONS //////
+
+if (rs.isMaster().ismaster) {
+  // var conf = rs.config()
+  // print("We are assuring that our host addr is equivalent to an internally reachable address");
+  // conf.members[0].host = ''+ myIp + ':27017';
+  // rs.reconfig(conf);
+} else {
+  until(function () {
+    print('Attempting to identify if we are a valid member of a replica set');
+    if ( 'object' === typeof rs.status() ) {
+      print('rs.status() is an object')
+      if ( rs.status().ok === 1 ) {
+        print('rs.status().ok is 1');
+        var isObjectAndHasLength = 'object' === typeof rs.status().members && rs.status().members.length;
+        if ( isObjectAndHasLength ) {
+          print('rs.status().members is an object and has a length > 0');
+          var myIp = db.isMaster().me.split(':')[0];
+          var membersFilteredByMyIp = rs.status().members.filter(function (member) { return member.name.split(':')[0] === myIp });
+          if ( membersFilteredByMyIp.length === 1 ) {
+            print('there is a properly identified member that is probably me.');
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }, 1000); // 90 seconds
+  print("We are secondary.");
+  print("Waiting for status to be secondary or switch to primary ( i.e. we are not in a catch up phase )");
+  until(function () {
+    var myIp = db.isMaster().me.split(':')[0];
+    var me = rs.status().members.filter(function (member) { return member.name.indexOf(myIp) !== -1 })[0]
+    print('Checking stateStr for catch up: ' +  me.stateStr);
+    if (['PRIMARY', 'SECONDARY', 'ARBITER'].indexOf(me.stateStr) !== -1) {
+      return true;
+    } else return false;
+    
+  }, 5000, 30);
+  quit();
+
+}

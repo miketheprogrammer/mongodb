@@ -1,0 +1,43 @@
+{
+  "provisioners": [
+    {
+      "type": "shell",
+      "inline": [
+        "sleep 10",
+        "sudo apt-get update -y",
+        "sudo apt-get install -y python-setuptools python-dev build-essential jq",
+        "sudo easy_install pip",
+        "sudo pip install ansible",
+        "sudo pip install awscli"
+      ]
+    },
+    {
+      "type": "ansible-local",
+      "playbook_file": "provisioning/mongodb.yml",
+      "playbook_dir": "provisioning",
+      "extra_arguments": "--extra-vars '@settings/options.yml' --extra-vars 'region={{user `region`}}' --extra-vars 'env={{user `env`}}' --extra-vars 'cluster_name={{user `cluster_name`}}'"
+    }
+  ],
+  "builders": [
+    {
+      "type": "amazon-ebs",
+      "communicator": "ssh",
+      "ssh_pty": "True",
+      "ami_name": "{{user `cluster_name`}}-master-{{user `env`}}-{{timestamp}}",
+      "region": "{{user `region`}}",
+      "source_ami": "{{user `base_image`}}",
+      "instance_type": "m3.medium",
+      "ssh_username": "ubuntu",
+      "tags": {
+        "Name": "{{user `cluster_name`}} {{user `env`}}",
+        "Date Created": "{{isotime `Monday, January 2, 2006 3:04pm MST`}}",
+        "Base Version": "{{user `base_version`}}",
+        "Themes Version": "{{user `themes_version`}}",
+        "App": "{{user `cluster_name`}}-master",
+        "Site": "{{user `cluster_name`}}",
+        "Env": "{{user `env`}}",
+        "Application": "mongodb"
+      }
+    }
+  ]
+}

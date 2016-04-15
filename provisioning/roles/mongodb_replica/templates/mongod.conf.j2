@@ -1,0 +1,31 @@
+storage:
+    dbPath: {{mongodb_conf_dbpath}}
+    directoryPerDB: {{ mongodb_conf_directory_per_db }}
+    journal:
+        enabled: {{ mongodb_conf_journal }}
+    engine: {{ mongodb_conf_storageengine }}
+systemLog:
+    destination: file
+    path: "{{ mongodb_conf_logpath }}"
+    logAppend: {{ mongodb_conf_logappend }}
+    logRotate: {{ mongodb_logrotate }}
+    timeStampFormat: iso8601-utc
+processManagement:
+    fork: {{ mongodb_conf_fork }}
+net:
+    bindIp: {{ mongodb_conf_bind_ip }}
+    port: {{ mongodb_conf_port }}
+    maxIncomingConnections: {{ mongodb_conf_maxConns }}
+    ipv6: {{ mongodb_conf_ipv6 }} 
+    wireObjectCheck: {{ mongodb_conf_wireobjectcheck }}
+    unixDomainSocket:
+        enabled: true
+    http:
+      enabled: {{ mongodb_conf_httpinterface }}
+#security:
+{% if mongodb_conf_replSet and mongodb_conf_auth %}
+#    keyFile: {{ mongodb_conf_keyFile }}
+{% endif %}
+    
+replication:
+    replSetName: {{ mongodb_conf_replSet }}

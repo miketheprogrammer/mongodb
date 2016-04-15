@@ -1,0 +1,126 @@
+///////// Bootstrapped by `sed` ///////
+
+var arbiters = ARBITERS
+var replicas = REPLICAS
+var initializer = REPLICAINITIALIZER
+var stackInstances = STACK_INSTANCES
+var myIp = MYIP
+var myGroup = MYGROUP
+
+///////// End Bootstrap ////////
+
+// FUNCTIONS
+var until = function (fn, sleepms, tries) {
+  var result = fn();
+  var response = {
+    triesLeft: tries,
+    result: result
+  }
+  if (tries === 0) return response;
+
+  sleepms = sleepms || 5000
+  tries = tries || 'infinity';
+  
+  if (result !== true) {
+    print('waiting', sleepms);
+    print('Attempts left', tries - 1);
+    sleep(sleepms)
+    if (tries === 'infinity') {
+      return until(fn, sleepms);
+    }
+    return until(fn, sleepms, tries - 1);
+  }
+  return response;
+}
+
+function addOrSwitchMember() {
+  if (rs.isMaster().ismaster) {
+    var other = myGroup.filter(function (host) { return host !== myIp })[0];
+    if (rs.isMaster().primary.split(':')[0] === other) {
+      print('Attempting to execute foreign eval stepDown action');
+      var primary = connect(rs.isMaster().primary + '/admin');
+      try {
+        primary.eval("try { rs.stepDown() } catch (err) { print('Caught step down error'); printjson(err); }");
+      } catch (err) {
+        print('Caught launcher eval error on stepDown clause.');
+        printjson(err);
+      }
+      
+      sleep(2000)
+      reconnect(db) // so that the next db command does not fail
+      var response = until(function() {
+        print('Waiting for new primary to be elected');
+        return rs.isMaster().primary !== undefined && 'string' === typeof rs.isMaster().primary;
+      }, 5000, 20);
+      if (!response.result) {
+        print('Failed to elect new primary in the allotted time');
+        quit()
+      }
+      
+      print('Connecting to new primary to execute remaining steps');
+      primary = connect(rs.isMaster().primary + '/admin');
+      primary.eval('rs.remove("' + other + ':27017")')
+      if (initializer.indexOf(myIp) !== -1 ) {
+        print("Adding replica(initializer)", myIp)
+        primary.eval('rs.add("' + myIp + ':27017")')
+      }
+      if (replicas.indexOf(myIp) !== -1) {
+        print("Adding replica", myIp);
+        primary.eval('rs.add("' + myIp + ':27017")')
+      }
+      if (arbiters.indexOf(myIp) !== -1) {
+        print("Adding arbiter", myIp);
+        primary.eval('rs.addArb("' + myIp + ':27017")')
+      }
+    } else {
+      if (other) {
+        print('removing old node', other);
+        rs.remove(other + ':27017');
+      }
+      if (initializer.indexOf(myIp) !== -1) {
+        print("Adding replica(initializer)", myIp);
+        rs.add(myIp + ':27017');
+      }      
+      if (replicas.indexOf(myIp) !== -1) {
+        print("Adding replica", myIp);
+        rs.add(myIp + ':27017');
+      }
+      if (arbiters.indexOf(myIp) !== -1) {
+        print("Adding arbiter", myIp);
+        rs.addArb(myIp + ':27017');
+      }
+    }
+  }
+}
+// END FUNCTIONS
+
+// clean up bad data
+var ___ = function () {};
+replicas        = replicas.filter(function (host) { return host !== null });
+arbiters        = arbiters.filter(function (host) { return host !== null });
+initializer     = initializer.filter(function (host) { return host !== null });
+stackInstances  = stackInstances.filter(function (host) { return host !== null });
+myGroup         = myGroup.filter(function (host) { return host !== null });
+
+
+// Steps
+if (initializer.indexOf(myIp) !== -1) {
+  print ("We are an initializer")
+  // Check if we are initializer
+  if (initializer.length === 1) {
+    // if we are only initializer then initialize and quit
+    print("We are the only initializer. Ensuring we are initiated.");
+    rs.initiate();
+    
+    print("We are assuring that our host addr is equivalent to an internally reachable address");
+    sleep(5000)
+    var conf = rs.config()
+    conf.members[0].host = ''+ myIp + ':27017';
+    rs.reconfig(conf);
+    sleep(2000)
+    print('new host =', rs.config().members[0].host);
+    quit()
+  }
+}
+addOrSwitchMember()
+
