@@ -14,3 +14,10 @@ The Atlas repo relies on the `environment` and `cluster_name` to be at their def
 Usage for Deis:
 
 `./build_mongodb_ami.sh us-east-1`
+
+
+TODO
+==============
+Convert script to just run on master.
+In service_mongodb in atlas, convert bash script to compose mongo
+connection string and use that instead, it will automatically attach the mongo shell to the primary.
